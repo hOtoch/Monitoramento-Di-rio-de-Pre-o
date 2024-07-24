@@ -10,6 +10,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from utils import format_price_text
 from datetime import date
 import openpyxl
+import schedule
 
 def iniciar_driver():
 
@@ -41,40 +42,49 @@ def iniciar_driver():
     
     return driver, wait
 
-driver, wait = iniciar_driver()
 
-driver.get('https://www.google.com/search?q=playstation+5')
+def job():
+    driver, wait = iniciar_driver()
+
+    driver.get('https://www.google.com/search?q=playstation+5')
 
 
-# Criando a planilha e o sheet Preços
-workbook = openpyxl.Workbook()
-del workbook['Sheet']
-workbook.create_sheet('Preços')
+    # Criando a planilha e o sheet Preços
+    workbook = openpyxl.Workbook()
+    del workbook['Sheet']
+    workbook.create_sheet('Preços')
 
-sheet_precos = workbook['Preços']
-sheet_precos.append(['Produto','Data atual','Valor','Link'])
+    sheet_precos = workbook['Preços']
+    sheet_precos.append(['Produto','Data atual','Valor','Link'])
 
-# Pegando a data atual
-date_formated = date.today().strftime("%d/%m/%Y")
+    # Pegando a data atual
+    date_formated = date.today().strftime("%d/%m/%Y")
 
-# Elementos retornados pela pesquisa no google
-elements_searched = wait.until(ec.visibility_of_all_elements_located((By.XPATH,"//div[@class='mnr-c c3mZkd pla-unit']")))
+    # Elementos retornados pela pesquisa no google
+    elements_searched = wait.until(ec.visibility_of_all_elements_located((By.XPATH,"//div[@class='mnr-c c3mZkd pla-unit']")))
 
-for element in elements_searched:
-    link_element = element.find_element(By.XPATH,'./a[2]')
-    name_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='pymv4e']")
-    
-    link = link_element.get_attribute('href')
-    name = name_element.text
-    
-    try: # Caso nao esteja em promoção
-        price_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='e10twf']")
-    except Exception as e: # Caso esteja em promoção
-        price_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='e10twf ONTJqd']")
+    for element in elements_searched:
+        link_element = element.find_element(By.XPATH,'./a[2]')
+        name_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='pymv4e']")
         
-    price = format_price_text(price_element.text)
-    
-    sheet_precos.append([name,date_formated,price,link])
+        link = link_element.get_attribute('href')
+        name = name_element.text
+        
+        try: # Caso nao esteja em promoção
+            price_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='e10twf']")
+        except Exception as e: # Caso esteja em promoção
+            price_element = element.find_element(By.XPATH,".//div[@class='rwVHAc itPOE']//span[@class='e10twf ONTJqd']")
+            
+        price = format_price_text(price_element.text)
+        
+        sheet_precos.append([name,date_formated,price,link])
 
-workbook.save("precos_play5.xlsx")
-driver.close()
+    workbook.save("precos_play5.xlsx")
+    driver.close()
+    
+if __name__ == "__main__":
+    schedule.every(30).minutes.do(job)
+    
+    while True:
+        schedule.run_pending()
+        sleep(1)
